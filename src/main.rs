@@ -176,8 +176,8 @@ fn setup_network_adapters() -> Vec<String> {
     let networks = Networks::new_with_refreshed_list();
     let mut network_strings = Vec::new();
     for (interface_name, data) in &networks {
-        let data_recieved_string = format!("{:.2} MB", data.total_received() as f64 / 1024.0 / 1024.0);
-        let data_transmitted_string = format!("{:.2} MB", data.total_transmitted() as f64 / 1024.0 / 1024.0);
+        let data_recieved_string = format!("{:.2} MB ↓", data.total_received() as f64 / 1024.0 / 1024.0);
+        let data_transmitted_string = format!("{:.2} MB ↑", data.total_transmitted() as f64 / 1024.0 / 1024.0);
         let data = format!("{} / {}", data_recieved_string, data_transmitted_string);
         network_strings.push(format!("{}: {}", uwu_letter_replace(interface_name.as_str()), data));
     }
