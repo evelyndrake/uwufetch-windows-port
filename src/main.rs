@@ -11,10 +11,7 @@ use serde::Deserialize;
 use std::{collections::HashMap, io::Write};
 use whoami;
 use console::{style, Style, Term};
-struct OS {
-    name: String,
-    version: String,
-}
+use dialoguer::{theme::ColorfulTheme, MultiSelect};
 use displayz::{query_displays, refresh, Resolution};
 use std::fs::File;
 use std::io::{self, BufRead, BufReader};
@@ -22,11 +19,15 @@ use std::io::prelude::*;
 use std::path::Path;
 use std::env;
 #[derive(Deserialize, Debug)]
+
 struct Win32_VideoController {
     name: String,
 }
 
-
+struct OS {
+    name: String,
+    version: String,
+}
 
 fn uwu_hw(hwname: &mut String) {
     let replacements = [
@@ -181,7 +182,7 @@ fn setup_network_adapters() -> Vec<String> {
         let data = format!("{} / {}", data_recieved_string, data_transmitted_string);
         network_strings.push(format!("{}: {}", uwu_letter_replace(interface_name.as_str()), data));
     }
-    network_strings // Add this line to return the vector
+    network_strings
 }
 
 fn return_ascii_line_by_line(filename: &String) -> io::Result<Vec<String>> {
@@ -238,6 +239,53 @@ fn replace_placeholders(line: &mut String) {
 // TODO: Add a menu using https://docs.rs/dialoguer/latest/dialoguer/
 // TODO: Clean up and split into multiple files
 fn main() {
+    let args: Vec<String> = env::args().collect();
+
+    // Check if config file in working directory exists
+    let config_file = Path::new("./uwufetch.cfg");
+    if config_file.exists() {
+
+    } else {
+        // Create config file
+        let mut file = File::create(config_file).unwrap();
+        file.write_all(b"false\nfalse").unwrap();
+    }
+    // Parse config file and load bools into defaults
+    let config = std::fs::read_to_string(config_file).unwrap();
+    let defaults = config.lines().map(|line| line.parse::<bool>().unwrap()).collect::<Vec<bool>>();
+
+    // If run with t flag
+    if args.len() > 1 && args[1] == "-t" {
+        // let defaults = &[false, false];
+        let options =&[
+            "No user@hostname display",
+            "No artwork",
+        ];
+        let selections = MultiSelect::with_theme(&ColorfulTheme::default())
+        .with_prompt("Configure (space to select, enter to continue)")
+        .items(&options[..])
+        .defaults(&defaults[..])
+        .interact()
+        .unwrap();
+        // Write selections to config file
+        let mut file = File::create(config_file).unwrap();
+        // If "No colors" is selected, write true to first line
+        if selections.contains(&0) {
+            file.write_all(b"true\n").unwrap();
+        } else {
+            file.write_all(b"false\n").unwrap();
+        }
+        // If "No artwork" is selected, write true to second line
+        if selections.contains(&1) {
+            file.write_all(b"true").unwrap();
+        } else {
+            file.write_all(b"false").unwrap();
+        }
+        return;
+    }
+
+
+
     // Display current path
     // let current_dir = env::current_dir().unwrap();
     // println!("Current directory: {}", current_dir.display());
@@ -269,10 +317,14 @@ fn main() {
 
 
     let mut write_spec = |title: &str, text: String, style_type: &Style| {
-        let mut current_line_string = space_offset.clone();
-        if current_line < ascii_lines.len() {
-            current_line_string = ascii_lines[current_line].clone() + "    ";
+        let mut current_line_string = "".to_string();
+        if defaults[1] == false { // If artwork is enabled
+            current_line_string = space_offset.clone();
+            if current_line < ascii_lines.len() {
+                current_line_string = ascii_lines[current_line].clone() + "    ";
+            }
         }
+        
         
         current_line += 1;
         let title_string = title.to_string();
@@ -292,14 +344,17 @@ fn main() {
     let hostname_plaintext = uwu_letter_replace(whoami::hostname().as_str());
     let username_string_plaintext = format!("{}@{}", username_plaintext, hostname_plaintext);
 
-    let username_string = format!("{}{}{}",
-    style(username_plaintext).magenta().italic(),
-    style("@").dim(),
-    style(hostname_plaintext).yellow());
+    if defaults[0] == false { // If user@hostname display is enabled
+        let username_string = format!("{}{}{}",
+        style(username_plaintext).magenta().italic(),
+        style("@").dim(),
+        style(hostname_plaintext).yellow());
 
-    write_spec(username_string.as_str(), "".to_string(), &none);
+        write_spec(username_string.as_str(), "".to_string(), &none);
 
-    write_spec("-".repeat(username_string_plaintext.len()).as_str(), "".to_string(), &_regular);
+        write_spec("-".repeat(username_string_plaintext.len()).as_str(), "".to_string(), &_regular);
+    }
+    
 
     let os = setup_os();
     write_spec("OS", format!("{} {}", os.name, os.version), &header);
