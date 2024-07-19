@@ -283,18 +283,23 @@ fn main() {
             title_string
         };
         term.write_line(
-            format!("{}{}\x1b[37m{}", current_line_string, style_type.apply_to(style(title_string)), style(text).white()).as_str(),
+            format!("{}{}\x1B[0m{}", current_line_string, style_type.apply_to(style(title_string)), style(text).white()).as_str(),
         ).unwrap();
         
     };
 
-    let username_string = format!("{}@{}",
-    style(uwu_letter_replace(whoami::username().as_str())).magenta().italic(),
-    style(uwu_letter_replace(whoami::hostname().as_str())).yellow());
+    let username_plaintext = uwu_letter_replace(whoami::username().as_str());
+    let hostname_plaintext = uwu_letter_replace(whoami::hostname().as_str());
+    let username_string_plaintext = format!("{}@{}", username_plaintext, hostname_plaintext);
+
+    let username_string = format!("{}{}{}",
+    style(username_plaintext).magenta().italic(),
+    style("@").dim(),
+    style(hostname_plaintext).yellow());
 
     write_spec(username_string.as_str(), "".to_string(), &none);
 
-    write_spec("-".repeat(username_string.len()).as_str(), "".to_string(), &_regular);
+    write_spec("-".repeat(username_string_plaintext.len()).as_str(), "".to_string(), &_regular);
 
     let os = setup_os();
     write_spec("OS", format!("{} {}", os.name, os.version), &header);
