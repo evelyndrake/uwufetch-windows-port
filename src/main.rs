@@ -29,6 +29,7 @@ struct OS {
     version: String,
 }
 
+
 fn uwu_hw(hwname: &mut String) {
     let replacements = [
         ("lenovo", "LenOwO"),
@@ -68,7 +69,11 @@ fn uwu_hw(hwname: &mut String) {
     }
 }
 
-fn uwu_letter_replace(text: &str) -> String {
+fn uwu_letter_replace(text: &str, dont_replace: &bool) -> String {
+    
+    if dont_replace == &true {
+        return text.to_string();
+    }
     let replacements = [
         ("r", "w"),
         ("l", "w"),
@@ -148,39 +153,46 @@ fn setup_resolution() -> String {
     }
 }
 
-fn setup_disks() -> Vec<String> {
+fn setup_disks(replace: &bool) -> Vec<String> {
     let disks = Disks::new_with_refreshed_list();
     let mut disk_strings = Vec::new();
     for disk in &disks {
         let disk_name = disk.name();
-        if disk_name == "" {
-            continue;
-        }
+
         // Remove quotes from disk name
         let disk_name = disk_name.to_string_lossy();
+        // if disk_name == "" {
+        //     continue;
+        // }
+        // Get drive letter from mount point
+        let disk_mount_point = disk.mount_point().to_string_lossy();
+        // Remove last 2 chars
+        let disk_mount_point = &disk_mount_point[..disk_mount_point.len() - 2];
+        let mut disk_name_string = disk_name.to_string();
         if disk_name == "" {
-            continue;
+            disk_name_string = "Local Disk".to_string();
         }
-        let disk_name = disk_name.replace("\"", "");
+        let disk_name = format!("{} ({})",disk_name_string.replace("\"", ""), disk_mount_point);
+
         let disk_size = disk.total_space();
         let disk_size_gb = disk_size as f64 / 1024.0 / 1024.0 / 1024.0;
         let disk_used = disk.available_space();
         let disk_used_gb = disk_used as f64 / 1024.0 / 1024.0 / 1024.0;
         let disk_free_gb = disk_size_gb - disk_used_gb;
         let disk_string = format!("{}: {:.2} GB / {:.2} GB", disk_name, disk_free_gb, disk_size_gb);
-        disk_strings.push(uwu_letter_replace(disk_string.as_str()));
+        disk_strings.push(uwu_letter_replace(disk_string.as_str(), replace));
     }
     disk_strings
 }
 
-fn setup_network_adapters() -> Vec<String> {
+fn setup_network_adapters(replace: &bool) -> Vec<String> {
     let networks = Networks::new_with_refreshed_list();
     let mut network_strings = Vec::new();
     for (interface_name, data) in &networks {
         let data_recieved_string = format!("{:.2} MB ↓", data.total_received() as f64 / 1024.0 / 1024.0);
         let data_transmitted_string = format!("{:.2} MB ↑", data.total_transmitted() as f64 / 1024.0 / 1024.0);
         let data = format!("{} / {}", data_recieved_string, data_transmitted_string);
-        network_strings.push(format!("{}: {}", uwu_letter_replace(interface_name.as_str()), data));
+        network_strings.push(format!("{}: {}", uwu_letter_replace(interface_name.as_str(), replace), data));
     }
     network_strings
 }
@@ -236,7 +248,6 @@ fn replace_placeholders(line: &mut String) {
     
 }
 
-// TODO: Add a menu using https://docs.rs/dialoguer/latest/dialoguer/
 // TODO: Clean up and split into multiple files
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -245,21 +256,22 @@ fn main() {
     let mut config_file = Path::new("./uwufetch.cfg");
     if !config_file.exists() {
         // Check if config file in home directory exists
-        config_file = Path::new("./uwufetch/u wufetch.cfg");
+        config_file = Path::new("./uwufetch/uwufetch.cfg");
     }
-
-
 
     if config_file.exists() {
         // Do nothing
     } else {
         // Create config file
         let mut file = File::create(config_file).unwrap();
-        file.write_all(b"false\nfalse").unwrap();
+        file.write_all(b"false\nfalse\nfalse").unwrap();
     }
     // Parse config file and load bools into defaults
     let config = std::fs::read_to_string(config_file).unwrap();
     let defaults = config.lines().map(|line| line.parse::<bool>().unwrap()).collect::<Vec<bool>>();
+    
+    // Disable letter replacement if true
+    let replace = &defaults[2];
 
     // If run with t flag
     if args.len() > 1 && args[1] == "-c" {
@@ -267,6 +279,7 @@ fn main() {
         let options =&[
             "No user@hostname display",
             "No artwork",
+            "No letter replacement for arbitrary text",
         ];
         let selections = MultiSelect::with_theme(&ColorfulTheme::default())
         .with_prompt("Configure (space to select, enter to continue)")
@@ -284,6 +297,12 @@ fn main() {
         }
         // If "No artwork" is selected, write true to second line
         if selections.contains(&1) {
+            file.write_all(b"true\n").unwrap();
+        } else {
+            file.write_all(b"false\n").unwrap();
+        }
+        // If "No letter replacement" is selected, write true to third line
+        if selections.contains(&2) {
             file.write_all(b"true").unwrap();
         } else {
             file.write_all(b"false").unwrap();
@@ -291,12 +310,6 @@ fn main() {
         return;
     }
 
-
-
-    // Display current path
-    // let current_dir = env::current_dir().unwrap();
-    // println!("Current directory: {}", current_dir.display());
-    // Define styles for colors
     let _green = Style::new().green().bold();
     let _red = Style::new().red().bold();
     let _yellow = Style::new().yellow().bold();
@@ -347,8 +360,8 @@ fn main() {
         
     };
 
-    let username_plaintext = uwu_letter_replace(whoami::username().as_str());
-    let hostname_plaintext = uwu_letter_replace(whoami::hostname().as_str());
+    let username_plaintext = uwu_letter_replace(whoami::username().as_str(), replace);
+    let hostname_plaintext = uwu_letter_replace(whoami::hostname().as_str(), replace);
     let username_string_plaintext = format!("{}@{}", username_plaintext, hostname_plaintext);
 
     if defaults[0] == false { // If user@hostname display is enabled
@@ -383,7 +396,7 @@ fn main() {
     write_spec("RESOWUTION", setup_resolution(), &header);
 
     write_spec("DISKS", "".to_string(), &header);
-    let disk_strings = setup_disks();
+    let disk_strings = setup_disks(replace);
     let mut disk_num = 0;
     for disk_string in disk_strings {
         disk_num += 1;
@@ -392,11 +405,10 @@ fn main() {
 
     
     write_spec("NETWOWORK", "".to_string(), &header);
-    let network_strings: Vec<String> = setup_network_adapters();
+    let network_strings: Vec<String> = setup_network_adapters(replace);
     let mut network_num = 0;
     for network_string in network_strings {
         network_num += 1;
         write_spec(format!("  {}", network_num).as_str(), network_string, &sub);
     }
-    // println!("OS is: {}", get_os());
 }
