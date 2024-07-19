@@ -242,9 +242,16 @@ fn main() {
     let args: Vec<String> = env::args().collect();
 
     // Check if config file in working directory exists
-    let config_file = Path::new("./uwufetch.cfg");
-    if config_file.exists() {
+    let mut config_file = Path::new("./uwufetch.cfg");
+    if !config_file.exists() {
+        // Check if config file in home directory exists
+        config_file = Path::new("./uwufetch/u wufetch.cfg");
+    }
 
+
+
+    if config_file.exists() {
+        // Do nothing
     } else {
         // Create config file
         let mut file = File::create(config_file).unwrap();
@@ -255,7 +262,7 @@ fn main() {
     let defaults = config.lines().map(|line| line.parse::<bool>().unwrap()).collect::<Vec<bool>>();
 
     // If run with t flag
-    if args.len() > 1 && args[1] == "-t" {
+    if args.len() > 1 && args[1] == "-c" {
         // let defaults = &[false, false];
         let options =&[
             "No user@hostname display",
